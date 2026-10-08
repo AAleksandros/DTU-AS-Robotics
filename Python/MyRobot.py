@@ -304,7 +304,7 @@ class MyRobot:
 # Demonstrates how to move the robot joints into desired joint positions [degrees]
 # You might need to adjust the offsets in the code above to make the zero point suit your needs.
 # Just comment out the code snippet, input desired joint angles in robot.move_j() and run.
-'''
+
 if __name__ == "__main__":
     robot = MyRobot()
     if robot.init_status:
@@ -326,7 +326,7 @@ if __name__ == "__main__":
         finally:
             pass
             #robot.disable_motors()
-'''
+
 #Example 2:
 #Demonstrates how to move the robot joints into desired a list of joint positions [degrees]
 #You might need to adjust the offsets in the code above to make the zero point suit your needs.
