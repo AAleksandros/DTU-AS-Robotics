@@ -3,7 +3,13 @@
 Python control code for the 4-DOF Dynamixel (AX-12A) robot arm, plus CAD parts.
 
 ```
-Python/MyRobot.py   robot class + example usage
+Python/MyRobot.py            robot class, forward/inverse kinematics, Jacobian
+Python/test_kinematics.py    self-checks for the kinematics in MyRobot.py
+Python/ProjectWork/          one script per assignment problem + lab scripts
+  Part1_Kinematics.py        Problems 1-2 (DH matrices, all IK solutions)
+  problem3.py, problem6.py   Problem 3 (circle configs), Problem 6 (quintic trajectory)
+  lab_test.py, read_angles.py, trace_circle.py   run on the real arm
+Python/images/               camera test photos
 CAD/                SolidWorks parts (.SLDPRT)
 DynamixelSDK/       ROBOTIS Dynamixel SDK (vendored, v4.0.0)
 ```
@@ -30,7 +36,8 @@ with that same `python`.
 
 ## Connecting the robot
 
-Set the serial port in `Python/MyRobot.py` (`DEVICENAME`, default `"COM5"`):
+The serial port is `DEVICENAME` in `Python/MyRobot.py`. It picks `"COM5"` on Windows and
+`/dev/tty.usbmodem12301` otherwise. If yours differs, edit that line:
 
 | OS      | Port looks like           | Find it with                        |
 |---------|---------------------------|-------------------------------------|
@@ -50,11 +57,18 @@ cd Python
 python MyRobot.py
 ```
 
-Both examples at the bottom of `MyRobot.py` are wrapped in `'''` quotes, so by default the
-script runs nothing. Remove the quotes around one example to run it:
+At the bottom of `MyRobot.py`, Example 1 is active and Example 2 is wrapped in `'''` quotes.
+Swap the quotes to run the other one:
 
 - **Example 1** reads the current joint angles and moves to a single pose.
 - **Example 2** loops through a sequence of poses.
 
 The joint angles are in degrees. The joint limits and motor offsets (`joint_limits`,
 `joint_offsets`) are set in `__init__`, so check them against your robot before running.
+
+The problem scripts can be run from any folder, for example:
+
+```bash
+python ProjectWork/problem6.py
+python test_kinematics.py   # should print "all kinematics checks passed"
+```
