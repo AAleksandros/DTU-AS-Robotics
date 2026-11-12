@@ -22,6 +22,70 @@ def cosd(x_deg):  # cos with degrees
 def sind(x_deg):  # sin with degrees
     return math.sin(math.radians(x_deg))
 
+# --------------------------- Kinematics (Problems 1-4) ---------------------------
+# Link lengths [m] from Figure 1 of the assignment. The real arm differs by a few mm (see Part 5).
+D1, L2, L3, L4 = 0.05, 0.093, 0.093, 0.05
+# Joint zero is the arm pointing straight up; the formulas below measure the shoulder from horizontal.
+THETA2_OFFSET = 90.0
+
+
+def forward_kinematics(q1, q2, q3, q4):
+    """Joint angles [deg] -> tool point (x, y, z) [m] at the end of link 4, and pitch [deg].
+
+    Pitch is the angle of link 4 above horizontal (0 = horizontal stylus)."""
+    t2 = q2 + THETA2_OFFSET
+    r = L2 * cosd(t2) + L3 * cosd(t2 + q3) + L4 * cosd(t2 + q3 + q4)  # horizontal reach from the base axis
+    z = D1 + L2 * sind(t2) + L3 * sind(t2 + q3) + L4 * sind(t2 + q3 + q4)
+    x = r * cosd(q1)
+    y = r * sind(q1)
+    pitch = t2 + q3 + q4
+    return x, y, z, pitch
+
+
+def inverse_kinematics(x, y, z, pitch):
+    """Tool point (x, y, z) [m] and pitch [deg] -> joint angles [deg], elbow-up solution.
+
+    Assumes the target is in front of the base axis. Raises ValueError if it is out of reach."""
+    q1 = math.degrees(math.atan2(y, x))
+    r = math.sqrt(x**2 + y**2)
+    # Wrist centre: step back from the tool point along link 4
+    r_w = r - L4 * cosd(pitch)
+    z_w = z - L4 * sind(pitch)
+    # Elbow angle from the law of cosines on the shoulder-elbow-wrist triangle
+    up = z_w - D1
+    D2 = r_w**2 + up**2
+    c3 = (D2 - L2**2 - L3**2) / (2 * L2 * L3)
+    if abs(c3) > 1:
+        raise ValueError("target out of reach")
+    t3 = -math.degrees(math.acos(c3))  # negative = elbow-up
+    # Shoulder angle: direction to the wrist minus the angle link 3 adds
+    up2 = L3 * sind(t3)
+    out2 = L2 + L3 * cosd(t3)
+    t2 = math.degrees(math.atan2(up, r_w)) - math.degrees(math.atan2(up2, out2))
+    # Wrist supplies the remaining pitch
+    t4 = pitch - t2 - t3
+    return q1, t2 - THETA2_OFFSET, t3, t4
+
+
+def jacobian(q1, q2, q3, q4):
+    """Joint angles [deg] -> 4x4 Jacobian expressed in the arm's vertical plane.
+
+    Rows: tangential, radial, vertical velocity [m/rad] and pitch rate [rad/rad].
+    Columns: base, shoulder, elbow, wrist."""
+    t2 = q2 + THETA2_OFFSET
+    # Joint positions in the arm plane as (radial, vertical)
+    shoulder = (0, D1)
+    elbow = (L2 * cosd(t2), D1 + L2 * sind(t2))
+    wrist = (elbow[0] + L3 * cosd(t2 + q3), elbow[1] + L3 * sind(t2 + q3))
+    tool = (wrist[0] + L4 * cosd(t2 + q3 + q4), wrist[1] + L4 * sind(t2 + q3 + q4))
+    J = np.zeros((4, 4))
+    J[0, 0] = tool[0]  # base rotation moves the tool tangentially by its reach r
+    for col, joint in ((1, shoulder), (2, elbow), (3, wrist)):
+        dr = tool[0] - joint[0]
+        dz = tool[1] - joint[1]
+        J[1, col], J[2, col] = -dz, dr  # z × (dr, dz): velocity is perpendicular to the joint-to-tool vector
+        J[3, col] = 1  # pitch is the sum of the three pitch joints
+    return J
 
 class MyRobot:
     # ----------------------------- Constants (AX-12A) -------------------------
