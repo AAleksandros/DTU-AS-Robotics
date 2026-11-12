@@ -105,6 +105,9 @@ class MyRobot:
     DXL_MOVING_STATUS_THRESHOLD = 10  # [ticks], not used directly here
     TICKS_PER_DEG = 1.0 / 0.29        # ≈ 3.448275862 ticks per degree
     DEG_PER_TICK = 0.29
+    # Motor angle [deg] that counts as joint angle 0 (arm straight up); 150 is the middle of the motor's range.
+    # Calibrated with a spirit level on 10 Nov (the shoulder leaned back ~2.5°). Recalibrate if the arm is rebuilt.
+    JOINT_OFFSETS = (150.0, 147.5, 150.0, 150.0)
 
     # ------------------------------- Init -------------------------------------
     def __init__(self):
@@ -118,14 +121,15 @@ class MyRobot:
         self.use_smooth_speed_flag = False
         self.gripper_open_flag = True
 
-        # deg limits: [-130,130], [-180,0], [-140,140], [-140,100]
-        self.joint_limits = np.array([[-90, 90], [-180, 180], [-140, 140], [-140, 140]])
+        # Joint limits [deg]: measured hard stops (10 Nov) q2 [-104, 102], q3 [-141, 118], q4 [-29, 140],
+        # minus a 5° margin. q1 is limited to ±90° by the cables. Re-measure if the arm is rebuilt.
+        self.joint_limits = np.array([[-90, 90], [-99, 97], [-136, 113], [-24, 135]])
 
         # IK config (simple analytical below; no external toolbox)
         self.ik_weights = np.array([0.25, 0.25, 0.25, 1, 1, 1])
 
         # Motor offsets (deg)
-        self.joint_offsets = np.array([150, 150, 150, 150], dtype=float)
+        self.joint_offsets = np.array(self.JOINT_OFFSETS, dtype=float)
 
         self.joint_angle_error = np.array([0.0, 0.0, 0.0, 0.0])
         self.init_status = 0
@@ -155,8 +159,8 @@ class MyRobot:
             # Initialize defaults
             self.set_speed(self.motor_speed, overwrite_speeds=True)
             self.set_torque_limit(self.motor_torque)
+            self.enable_motors()  # must come before move_j, which waits for the joints to arrive
             self.move_j(0, 0, 0, 0)
-            self.enable_motors()
             self.init_status = 1
 
         except Exception as e:
@@ -179,29 +183,31 @@ class MyRobot:
     def _check_limits_one(self, deg, idx):
         lo, hi = self.joint_limits[idx]
         if not (lo <= deg <= hi):
-            if idx == 0:
-                raise ValueError("Angle Limits for first Axis Reached, Min/Max: ±130°")
-            elif idx == 1:
-                raise ValueError("Angle Limits for second Axis Reached, Min/Max: [−180°, 0°]")
-            else:
-                raise ValueError("Angle Limits Reached, Min/Max: ±100°")
+            raise ValueError(f"Joint {idx + 1}: {deg:.1f}° is outside its limits [{lo}°, {hi}°]")
         return deg
 
     # --------------------------- Motor I/O wrappers ---------------------------
+    DXL_ERRORS = {1: "input voltage", 2: "angle limit", 4: "overheating", 8: "range",
+                  16: "checksum", 32: "overload (motor switched itself off; power-cycle the robot)", 64: "instruction"}
+
+    @classmethod
+    def _err(cls, code):
+        return ", ".join(name for bit, name in cls.DXL_ERRORS.items() if code & bit) or str(code)
+
     def _write1(self, dxl_id, addr, value):
         dxl_comm_result, dxl_error = self.packet_handler.write1ByteTxRx(self.port_handler, dxl_id, addr, int(value))
         if dxl_comm_result != self.COMM_SUCCESS or dxl_error != 0:
-            raise IOError(f"DXL write1 error id={dxl_id}, addr={addr}, result={dxl_comm_result}, error={dxl_error}")
+            raise IOError(f"DXL write1 error id={dxl_id}, addr={addr}, result={dxl_comm_result}, error={self._err(dxl_error)}")
 
     def _write2(self, dxl_id, addr, value):
         dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(self.port_handler, dxl_id, addr, int(value))
         if dxl_comm_result != self.COMM_SUCCESS or dxl_error != 0:
-            raise IOError(f"DXL write2 error id={dxl_id}, addr={addr}, result={dxl_comm_result}, error={dxl_error}")
+            raise IOError(f"DXL write2 error id={dxl_id}, addr={addr}, result={dxl_comm_result}, error={self._err(dxl_error)}")
 
     def _read2(self, dxl_id, addr):
         value, dxl_comm_result, dxl_error = self.packet_handler.read2ByteTxRx(self.port_handler, dxl_id, addr)
         if dxl_comm_result != self.COMM_SUCCESS or dxl_error != 0:
-            raise IOError(f"DXL read2 error id={dxl_id}, addr={addr}, result={dxl_comm_result}, error={dxl_error}")
+            raise IOError(f"DXL read2 error id={dxl_id}, addr={addr}, result={dxl_comm_result}, error={self._err(dxl_error)}")
         return value
 
     # ------------------------------- Speeds/Torque ----------------------------
@@ -275,12 +281,10 @@ class MyRobot:
             self.joint_angle_error[i] = deg - self.joint_angles[i]
         return j_a
 
-    # --------------------------- Kinematics (FK / IK) -------------------------
-   # Please input your forward and inverse kinematics here for position and pose conversion to joint angles.
-   #  The output should be in the format of an array
+    # Kinematics (forward_kinematics, inverse_kinematics, jacobian) are module-level functions at the top of this file.
 
     # ------------------------------- Motion -----------------------------------
-    def move_j(self, j1_deg, j2_deg, j3_deg, j4_deg, wait=True, tol_deg=2.0, poll_period=0.05):
+    def move_j(self, j1_deg, j2_deg, j3_deg, j4_deg, wait=True, tol_deg=2.0, poll_period=0.05, timeout_s=10.0):
         # Limits
         desired = np.array([j1_deg, j2_deg, j3_deg, j4_deg], dtype=float)
         for i in range(4):
@@ -303,16 +307,19 @@ class MyRobot:
             return
 
 
-        # Wait until all joints within tolerance
+        # Wait until all joints within tolerance, but not forever
+        t_end = time.time() + timeout_s
+        ja, last_err = None, None
         while True:
             try:
                 ja = self.read_joint_angles()
-            except Exception:
-                # If read fails transiently, just try again shortly.
-                time.sleep(poll_period)
-                continue
-            if np.all(np.abs(ja - desired) < tol_deg):
-                break
+                if np.all(np.abs(ja - desired) < tol_deg):
+                    break
+            except Exception as e:
+                last_err = e  # reads occasionally fail; retry until the timeout
+            if time.time() > t_end:
+                raise TimeoutError(f"Joints did not reach {np.round(desired, 1)} within {timeout_s} s; "
+                                   f"last measured {None if ja is None else np.round(ja, 1)}; last error: {last_err}")
             time.sleep(poll_period)
 
     #def move_c(self, x, y, z, pitch_deg, **kwargs):
