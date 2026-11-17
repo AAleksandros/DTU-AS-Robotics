@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 ~$*
+
+# photos saved by each typing run (kept on disk, not in the repo)
+Python/images/typing_*/

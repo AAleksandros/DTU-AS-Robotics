@@ -19,6 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))          # MyRobot.py is one folder up
 from MyRobot import MyRobot, forward_kinematics       # noqa: E402
 from red_detector import open_camera                  # noqa: E402
+from arm import set_torque, read_angles, hold_current_position, move_exact   # noqa: E402
 
 # ------------------------------ Settings ---------------------------------------
 CAMERA_INDEX = 1
@@ -27,29 +28,6 @@ KEYS = ["W", "T", "O", "X", "B", "M"]                 # reference keys, spread a
 MAX_Z_SPREAD = 5.0                                    # [mm] warn if the touched keys are not at the same height
 CALIB_FILE = os.path.join(HERE, "calib_homography.npz")
 PHOTO_FILE = os.path.join(HERE, "..", "images", "calib_photo.jpg")
-
-
-# ------------------------------ Robot helpers ----------------------------------
-def set_torque(robot, on):
-    for dxl_id in robot.motor_ids:
-        robot._write1(dxl_id, robot.ADDR_MX_TORQUE_ENABLE, 1 if on else 0)
-
-
-def read_angles(robot, tries=5):
-    """Joint angles [deg]; reads sometimes fail, so retry a few times."""
-    for _ in range(tries):
-        try:
-            return robot.read_joint_angles()
-        except IOError:
-            time.sleep(0.05)
-    raise IOError("Could not read the joint angles")
-
-
-def hold_current_position(robot):
-    """Make each motor's goal = where it is now, so switching torque on doesn't make it jump."""
-    q = read_angles(robot)
-    for i, dxl_id in enumerate(robot.motor_ids):
-        robot._write2(dxl_id, robot.ADDR_MX_GOAL_POSITION, robot.deg_to_ticks(q[i] + robot.joint_offsets[i]))
 
 
 # ------------------------------ Part 1: touch ----------------------------------
@@ -136,7 +114,9 @@ def main():
     input("  Keep holding the arm and press Enter: the motors switch on and it goes to the look pose ")
     hold_current_position(robot)
     set_torque(robot, True)
-    robot.move_j(*LOOK_POSE)
+    q_cmd, error = move_exact(robot, LOOK_POSE)      # measured angles = LOOK_POSE, not just "within 2 deg"
+    print(f"  look pose reached; correction sent {np.round(q_cmd - np.array(LOOK_POSE), 1)} deg, "
+          f"remaining error {np.round(error, 1)} deg")
     cam = open_camera(CAMERA_INDEX)
     time.sleep(1.0)                                    # let the arm settle
     frame = grab_fresh_frame(cam)

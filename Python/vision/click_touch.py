@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(HERE, ".."))              # MyRobot.py is one fo
 from MyRobot import MyRobot, inverse_kinematics           # noqa: E402
 from red_detector import open_camera                      # noqa: E402
 from calibrate_homography import CALIB_FILE, grab_fresh_frame   # noqa: E402
+from arm import move_exact, send, wait_until_still   # noqa: E402
 
 # ------------------------------ Settings ---------------------------------------
 APPROACH_MM = 30.0            # height above the key before going down
@@ -84,8 +85,7 @@ def main():
 
     try:
         while True:
-            robot.move_j(*look_pose)
-            time.sleep(0.5)                               # let the arm settle before the photo
+            move_exact(robot, look_pose)                  # camera exactly where it was at calibration
             frame = grab_fresh_frame(cam)
             pixel = wait_for_click(frame)
             if pixel is None:
@@ -100,10 +100,14 @@ def main():
             q_above, q_touch, pitch = plan
             print(f"  pitch {pitch} deg   above {np.round(q_above, 1)}   touch {np.round(q_touch, 1)}")
 
-            robot.move_j(*q_above)
-            robot.move_j(*q_touch)
+            q_above_cmd, error = move_exact(robot, q_above)
+            correction = q_above_cmd - np.asarray(q_above)
+            print(f"  correction {np.round(correction, 1)} deg, remaining error {np.round(error, 1)} deg")
+            send(robot, np.asarray(q_touch) + correction)   # same correction just below: similar pose, similar shortfall
+            wait_until_still(robot)
             input("  Touching. Measure the error with a ruler, then press Enter to go back up ")
-            robot.move_j(*q_above)
+            send(robot, q_above_cmd)
+            wait_until_still(robot)
     finally:
         cam.release()
         cv2.destroyAllWindows()
