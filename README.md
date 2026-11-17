@@ -8,6 +8,7 @@ Python/test_kinematics.py    self-checks for the kinematics in MyRobot.py
 Python/ProjectWork/          one script per assignment problem + lab scripts
   Part1_Kinematics.py        Problems 1-2 (DH matrices, all IK solutions)
   problem3.py, problem6.py   Problem 3 (circle configs), Problem 6 (quintic trajectory)
+  problem10.py               Problem 10 (dynamics D, C, g and joint torques; writes problem10_torques.csv)
   lab_test.py, read_angles.py, trace_circle.py   run on the real arm
 Python/images/               camera test photos
 CAD/                SolidWorks parts (.SLDPRT)
@@ -16,7 +17,8 @@ DynamixelSDK/       ROBOTIS Dynamixel SDK (vendored, v4.0.0)
 
 ## Setup
 
-Requires Python 3 with `numpy` (Anaconda already has it).
+Requires Python 3 with `numpy`; Problem 10 also needs `sympy` and `matplotlib`
+(Anaconda already has all three, otherwise `pip install numpy sympy matplotlib`).
 
 ```bash
 git clone https://github.com/AAleksandros/Robotics.git
@@ -70,5 +72,6 @@ The problem scripts can be run from any folder, for example:
 
 ```bash
 python ProjectWork/problem6.py
+python ProjectWork/problem10.py
 python test_kinematics.py   # should print "all kinematics checks passed"
 ```
