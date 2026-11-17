@@ -123,7 +123,7 @@ class MyRobot:
 
         # Joint limits [deg]: measured hard stops (10 Nov) q2 [-104, 102], q3 [-141, 118], q4 [-29, 140],
         # minus a 5° margin. q1 is limited to ±90° by the cables. Re-measure if the arm is rebuilt.
-        self.joint_limits = np.array([[-90, 90], [-99, 97], [-136, 113], [-24, 135]])
+        self.joint_limits = np.array([[-90, 90], [-99, 97], [-136, 113], [-110, 85]])
 
         # IK config (simple analytical below; no external toolbox)
         self.ik_weights = np.array([0.25, 0.25, 0.25, 1, 1, 1])
