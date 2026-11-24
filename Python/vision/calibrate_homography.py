@@ -24,7 +24,7 @@ from arm import set_torque, read_angles, hold_current_position, move_exact   # n
 # ------------------------------ Settings ---------------------------------------
 CAMERA_INDEX = 1
 LOOK_POSE = (0.0, 7.6, -70.0, -105.0)                 # [deg] the pose the photo is always taken from
-KEYS = ["W", "T", "O", "X", "B", "M"]                 # reference keys, spread around the "hello world" letters
+KEYS = ["W", "T", "O", "X", "B", "M", "space"]                 # reference keys, spread around the "hello world" letters
 MAX_Z_SPREAD = 5.0                                    # [mm] warn if the touched keys are not at the same height
 CALIB_FILE = os.path.join(HERE, "calib_homography.npz")
 PHOTO_FILE = os.path.join(HERE, "..", "images", "calib_photo.jpg")
