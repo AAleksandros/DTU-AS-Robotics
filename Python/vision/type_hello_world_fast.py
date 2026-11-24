@@ -31,9 +31,9 @@ from detect_keys import load_templates, detect_keys, draw  # noqa: E402
 from type_hello_world import key_name, TEXT, COUNTDOWN_S  # noqa: E402
 
 LIFT_MM = 60.0                # height above the keys while moving from one key to the next
-ABOVE_MM = 30.0               # stop here above the key (exact), then press straight down
+ABOVE_MM = 15.0               # stop here above the key (exact), then press straight down
 PRESS_DEPTH_MM = 4          # how far below the key top the press goes
-EXTRA_DEPTH_MM = {"space": 4}   # the space bar is long and stiff: press it deeper
+EXTRA_DEPTH_MM = {"space": 4,"O":4}   # the space bar is long and stiff: press it deeper
 PRESS_TIME_S = 0.23         
    # short press: the keyboard repeats a letter if it is held ~0.5 s
 SAVE_DIR = os.path.join(HERE, "..", "images", time.strftime("typing_fast_%H%M%S"))
