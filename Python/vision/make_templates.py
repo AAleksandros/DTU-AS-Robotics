@@ -21,12 +21,16 @@ LETTERS = [k for k in KEYS if k != "space"]            # these get a template
 SPACE_REF = ("D", "L")                                  # the space bar is located from these two letters
 
 # Crop box per letter: (width, height, x of the key centre inside the crop, y of the key centre inside the crop) [px]
-# A square about one key wide, centred on the key.
-DEFAULT_BOX = (110, 110, 55, 55)
+# About one key high and almost two keys wide, centred on the key: it takes in half of each neighbour too.
+# With a blurry camera some letters look alike (H and N, D and O); their neighbours (G H J vs B N M) don't.
+DEFAULT_BOX = (230, 110, 115, 55)
+# Keys at the sides of the image take their extra width from the inner side only, so they can still be
+# found when they are close to the edge of the photo (W: extends right; O and L: extend left).
+BOXES = {"W": (230, 110, 55, 55), "O": (230, 110, 175, 55), "L": (230, 110, 175, 55)}
 
 
 def box_for(key):
-    return DEFAULT_BOX
+    return BOXES.get(key, DEFAULT_BOX)
 
 
 def space_relative(p_space, p_a, p_b):

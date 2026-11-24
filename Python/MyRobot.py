@@ -97,7 +97,7 @@ class MyRobot:
 
     PROTOCOL_VERSION = 1.0
     BAUDRATE = 1000000
-    DEVICENAME = "COM5" if os.name == "nt" else "/dev/tty.usbmodem12301"  # Windows (teammate) / Mac. Linux: "/dev/ttyUSB0"
+    DEVICENAME = "COM7" if os.name == "nt" else "/dev/tty.usbmodem12301"  # Windows (teammate) / Mac. Linux: "/dev/ttyUSB0"
 
     TORQUE_ENABLE = 1
     TORQUE_DISABLE = 0

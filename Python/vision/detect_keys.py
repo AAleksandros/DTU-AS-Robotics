@@ -75,7 +75,7 @@ def detect_keys(photo, templates, space_rule):
     for i, a in enumerate(letters):
         for b in letters[i + 1:]:
             (pa, sa, _), (pb, sb, _) = candidates[a], candidates[b]
-            if np.hypot(pa[0] - pb[0], pa[1] - pb[1]) < templates[a][1][0] / 2:
+            if np.hypot(pa[0] - pb[0], pa[1] - pb[1]) < min(templates[a][1][:2]) / 2:   # closer than half a key
                 loser, winner = (a, b) if sa < sb else (b, a)
                 clash[loser] = winner
 
@@ -102,8 +102,8 @@ def draw(photo, found, templates):
     for key, (u, v) in found.items():
         u, v = int(round(u)), int(round(v))
         if key in templates:
-            w, h, ox, oy = templates[key][1]
-            cv2.rectangle(view, (u - ox, v - oy), (u - ox + w, v - oy + h), (0, 255, 0), 2)
+            h = templates[key][1][1]                     # draw one key (a square), not the whole wide template
+            cv2.rectangle(view, (u - h // 2, v - h // 2), (u + h // 2, v + h // 2), (0, 255, 0), 2)
         cv2.drawMarker(view, (u, v), (0, 255, 0), cv2.MARKER_CROSS, 20, 2)
         cv2.putText(view, key, (u + 8, v - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
     missing = [k for k in list(templates) + ["space"] if k not in found]
