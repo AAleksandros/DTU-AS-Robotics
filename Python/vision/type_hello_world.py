@@ -4,6 +4,7 @@ Usage (from the Python/vision folder, after calibrate_homography.py and make_tem
     python type_hello_world.py
     python type_hello_world.py "hello"        # another text, using only keys that have a template
 
+First a live preview: move the keyboard until every key is green, then ENTER in the window (q = quit).
 Before the countdown ends, click inside a text editor (Notepad) on the computer the keyboard is plugged into.
 Ctrl+C stops; the arm keeps its pose with the motors on.
 """
@@ -51,6 +52,29 @@ def find_key(robot, cam, look_pose, templates, space_rule, key, step):
     return None
 
 
+def preview(cam, templates, space_rule, needed):
+    """Live view until every needed key is found and ENTER is pressed. Returns False if q is pressed."""
+    cv2.namedWindow("place the keyboard", cv2.WINDOW_NORMAL)
+    while True:
+        ok, frame = cam.read()
+        if not ok:
+            continue
+        found, _ = detect_keys(frame, templates, space_rule)
+        view = draw(frame, found, templates)
+        missing = sorted(needed - set(found))
+        text = "All keys found: ENTER = start   q = quit" if not missing else "Move the keyboard until all keys are green"
+        cv2.putText(view, text, (20, view.shape[0] - 25), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                    (0, 200, 0) if not missing else (0, 0, 255), 2)
+        cv2.imshow("place the keyboard", view)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            cv2.destroyAllWindows()
+            return False
+        if key == 13 and not missing:
+            cv2.destroyAllWindows()
+            return True
+
+
 def press(robot, q_above, q_press):
     q_above_cmd, error = move_exact(robot, q_above)       # really above the key, not "within 2 deg"
     correction = q_above_cmd - np.asarray(q_above)
@@ -79,6 +103,13 @@ def main():
     cam = open_camera(camera_index)
 
     click_touch.TOUCH_DEPTH_MM = PRESS_DEPTH_MM           # plan_touch goes this far below the key top
+
+    move_exact(robot, look_pose)                          # preview: place the keyboard, then ENTER
+    if not preview(cam, templates, space_rule, {key_name(c) for c in text}):
+        cam.release()
+        robot.port_handler.closePort()
+        sys.exit("Cancelled.")
+
     for s in range(COUNTDOWN_S, 0, -1):
         print(f"Click inside the text editor now... {s}")
         time.sleep(1)
